@@ -41,7 +41,11 @@ router.post('/', function (req, res, next) {
 
       const newToken = parsed.UserInfo.user.securityToken
 
-      const personas = parsed.UserInfo.personas.ProfileData
+      let personas = parsed.UserInfo.personas.ProfileData
+      if (!(personas instanceof Array)) {
+        personas = [personas]
+      }
+
       const zip = new AdmZip();
       zip.addFile("personas/", Buffer.from(new Uint8Array(0)))
       zip.addFile("DriverPersona/", Buffer.from(new Uint8Array(0)))
