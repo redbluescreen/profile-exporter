@@ -1,10 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const axios = require('axios')
-const url = require('url')
-const crypto = require('crypto')
 const urljoin = require('url-join')
-const querystring = require('querystring')
 const xmlParser = require('fast-xml-parser')
 const servercomm = require('../lib/servercomm')
 const AdmZip = require('adm-zip')
@@ -15,26 +12,28 @@ router.get('/', function(req, res, next) {
 });
 
 router.post('/', function (req, res, next) {
-  const { server, email, password } = req.body
+  const { email, password } = req.body
+  const server = 'https://core.sparkserver.eu/soapbox-race-core/Engine.svc'
 
-  if (!server || !email || !password) {
+  if (!email || !password) {
     res.status(422).send('lol try again')
     return
   }
 
   res.status(200)
 
-  const passwordHash = crypto.createHash('sha1').update(password).digest().toString('hex');
-  const authURL = urljoin(server, `User/authenticateUser?email=${querystring.escape(email).replace('%40', '@')}&password=${querystring.escape(passwordHash)}`);
+  const authURL = urljoin(server, 'User/modernAuth');
 
-  axios.default.get(authURL).then(function(response) {
+  axios.default.post(authURL, {
+    email,
+    password
+  }).then(function(response) {
     // console.log(response.data)
     const loginStatus = response.data
-    const parsed = xmlParser.parse(loginStatus)
-    const token = parsed.LoginStatusVO.LoginToken
-    const userId = parsed.LoginStatusVO.UserId
+    const token = loginStatus.token
+    const userId = loginStatus.userId
 
-    console.log(`loginToken = ${parsed.LoginStatusVO.LoginToken}, userId = ${parsed.LoginStatusVO.UserId}`)
+    // console.log(`loginToken = ${token}, userId = ${userId}`)
 
     return servercomm.sendServerPost(urljoin(server, 'User/GetPermanentSession'), token, userId).then(async function(response) {
       const sessionData = response.data
@@ -78,9 +77,8 @@ router.post('/', function (req, res, next) {
     console.log(error.message, error.response ? error.response.data : "")
 
     const loginStatus = error.response.data
-    const parsed = xmlParser.parse(loginStatus)
 
-    res.status(500).send(parsed.LoginStatusVO.Description)
+    res.status(500).send(loginStatus.error)
   })
 })
 
